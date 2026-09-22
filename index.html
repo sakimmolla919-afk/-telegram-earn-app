@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watch & Earn</title>
+    <!-- Telegram SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- AdsGram SDK -->
+    <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
+    <!-- Firebase SDK (v8 Version) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            text-align: center; 
+            background: #1a1a1a; 
+            color: white; 
+            padding: 20px; 
+        }
+        .card { 
+            background: #2a2a2a; 
+            padding: 20px; 
+            border-radius: 12px; 
+            margin-top: 20px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        button { 
+            background: #28a745; 
+            color: white; 
+            border: none; 
+            padding: 14px 28px; 
+            font-size: 16px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            margin-top: 15px;
+        }
+        button:disabled { 
+            background: #555; 
+            cursor: not-allowed;
+        }
+        #status {
+            margin-top: 15px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>ভিডিও দেখুন এবং পয়েন্ট জিতুন</h2>
+        <p>মোট ব্যালেন্স: <b id="balance" style="color: #ffc107;">0</b> পয়েন্ট</p>
+        <p>আজকে দেখা হয়েছে: <b id="watchedCount" style="color: #17a2b8;">0</b> / 30</p>
+        <button id="adBtn" onclick="watchAd()">ভিডিও অ্যাড দেখুন</button>
+        <p id="status"></p>
+    </div>
+
+    <script>
+        // Telegram App Initialization
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        const userId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : "guest_user";
+
+        // আপনার Firebase Project Config
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY", // এখানে আপনার Firebase API Key বসাবেন
+            authDomain: "telegram-earn-app-bf23c.firebaseapp.com",
+            databaseURL: "https://telegram-earn-app-bf23c-default-rtdb.firebaseio.com",
+            projectId: "telegram-earn-app-bf23c",
+            storageBucket: "telegram-earn-app-bf23c.appspot.com",
+            messagingSenderId: "314288083027",
+            appId: "1:314288083027:web:6bc9fec573...",
+            measurementId: "G-FLS411DZE3"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // AdsGram Integration (এখানে আপনার Block ID বসাবেন)
+        const AdController = window.AdsGram.init({ blockId: "YOUR_BLOCK_ID" });
+
+        const today = new Date().toISOString().slice(0, 10);
+        const userRef = db.ref('users/' + userId);
+
+        // ডেটাবেস থেকে ইউজারের পয়েন্ট ও লিমিট লোড করা
+        userRef.on('value', (snapshot) => {
+            const data = snapshot.val() || { balance: 0, lastDate: today, todayCount: 0 };
+            
+            let todayCount = data.todayCount || 0;
+            if (data.lastDate !== today) {
+                todayCount = 0;
+                userRef.update({ lastDate: today, todayCount: 0 });
+            }
+
+            document.getElementById('balance').innerText = data.balance || 0;
+            document.getElementById('watchedCount').innerText = todayCount;
+
+            if (todayCount >= 30) {
+                document.getElementById('adBtn').disabled = true;
+                document.getElementById('status').innerText = "আজকের ভিডিও লিমিট শেষ! আগামীকাল আবার চেষ্টা করুন।";
+                document.getElementById('status').style.color = "#dc3545";
+            }
+        });
+
+        // অ্যাড দেখানোর ফাংশন
+        function watchAd() {
+            document.getElementById('status').innerText = "অ্যাড লোড হচ্ছে...";
+            document.getElementById('status').style.color = "#ffc107";
+
+            AdController.show().then((result) => {
+                userRef.once('value').then((snapshot) => {
+                    const data = snapshot.val() || { balance: 0, todayCount: 0 };
+                    const newBalance = (data.balance || 0) + 10;
+                    const newCount = (data.todayCount || 0) + 1;
+
+                    userRef.update({
+                        balance: newBalance,
+                        todayCount: newCount,
+                        lastDate: today
+                    });
+
+                    document.getElementById('status').innerText = "অভিনন্দন! ১০ পয়েন্ট যোগ করা হয়েছে।";
+                    document.getElementById('status').style.color = "#28a745";
+                });
+            }).catch((err) => {
+                document.getElementById('status').innerText = "বিজ্ঞাপনটি পুরোপুরি দেখা হয়নি অথবা লোড হতে ব্যর্থ হয়েছে।";
+                document.getElementById('status').style.color = "#dc3545";
+            });
+        }
+    </script>
+</body>
+</html>
