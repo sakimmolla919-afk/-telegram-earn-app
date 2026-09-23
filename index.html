@@ -138,7 +138,7 @@
                 মোট ব্যালেন্স: <b id="balance" style="color: #ffca28; font-size: 20px;">0</b> পয়েন্ট
             </div>
             <div class="stat-box">
-                আজকে দেখা হয়েছে: <b id="watchedCount" style="color: #00e5ff;">0</b> / 30
+                আজকে দেখা হয়েছে: <b id="watchedCount" style="color: #00e5ff;">0</b> / 100
             </div>
 
             <button id="adBtn" onclick="watchAd()">ভিডিও অ্যাড দেখুন</button>
@@ -191,7 +191,7 @@
             console.log("Telegram SDK Error", e);
         }
 
-        // Firebase Realtime Database Connection
+        // Firebase Connection
         const firebaseConfig = {
             databaseURL: "https://telegram-earn-app-bf23c-default-rtdb.firebaseio.com"
         };
@@ -213,7 +213,7 @@
         let isWatchingAd = false;
         let timerInterval = null;
 
-        // Firebase Sync
+        // Firebase Data Sync
         if (userRef) {
             userRef.on('value', (snapshot) => {
                 const data = snapshot.val() || { balance: 0, lastDate: today, todayCount: 0, name: userName };
@@ -230,9 +230,9 @@
                 document.getElementById('balance').innerText = currentBalance;
                 document.getElementById('watchedCount').innerText = todayCount;
 
-                if (todayCount >= 30) {
+                if (todayCount >= 100) {
                     document.getElementById('adBtn').disabled = true;
-                    document.getElementById('status').innerText = "আজকের ভিডিও সীমা (৩০টি) শেষ! আগামীকাল আবার চেষ্টা করুন।";
+                    document.getElementById('status').innerText = "আজকের ভিডিও সীমা (১০০টি) শেষ! আগামীকাল আবার চেষ্টা করুন।";
                     document.getElementById('status').style.color = "#ff5252";
                 }
             });
@@ -265,9 +265,9 @@
             });
         }
 
-        // Watch Ad Logic with 30-Second Timer
+        // Watch Ad Logic (100 Ads Limit & Monetag Integration)
         function watchAd() {
-            if (todayCount >= 30) {
+            if (todayCount >= 100) {
                 alert("আজকের ভিডিও সীমা শেষ!");
                 return;
             }
@@ -275,16 +275,25 @@
             const nextVideoNo = todayCount + 1;
             alert(`${nextVideoNo} নম্বর ভিডিও প্রসেস করা হচ্ছে।`);
 
+            // Trigger Monetag Ad SDK
+            try {
+                if (typeof show_11866445 === 'function') {
+                    show_11866445();
+                } else if (typeof show === 'function') {
+                    show();
+                }
+            } catch (e) {
+                console.log("Ad Error", e);
+            }
+
+            startTimer(nextVideoNo);
+        }
+
+        function startTimer(nextVideoNo) {
             const statusElem = document.getElementById('status');
             const timerBox = document.getElementById('timerBox');
             const countdownElem = document.getElementById('countdown');
             const adBtn = document.getElementById('adBtn');
-
-            try {
-                if (typeof show_11866445 === 'function') {
-                    show_11866445();
-                }
-            } catch (e) {}
 
             isWatchingAd = true;
             adBtn.disabled = true;
@@ -310,7 +319,7 @@
             }, 1000);
         }
 
-        // Cancel on Minimize
+        // Cancel Timer on Background/Minimize
         document.addEventListener("visibilitychange", function() {
             if (document.hidden && isWatchingAd) {
                 clearInterval(timerInterval);
@@ -324,6 +333,7 @@
             }
         });
 
+        // Add Points after successful watch
         function addRewardPoints() {
             const statusElem = document.getElementById('status');
             if (!userRef) return;
@@ -345,7 +355,7 @@
             });
         }
 
-        // Withdraw Logic
+        // Request Withdraw
         function requestWithdraw() {
             const method = document.getElementById('paymentMethod').value;
             const account = document.getElementById('accountNumber').value.trim();
