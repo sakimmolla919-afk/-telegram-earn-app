@@ -6,8 +6,10 @@
     <title>Watch & Earn</title>
     <!-- Telegram SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <!-- AdsGram SDK -->
-    <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
+
+    <!-- Monetag SDK Tag (Monetag-এর ড্যাশবোর্ডের ১ নম্বর কপি করা Tag টি নিচে বসাবেন) -->
+    YOUR_MONETAG_SDK_SCRIPT_TAG
+
     <!-- Firebase SDK (v8 Version) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -61,9 +63,9 @@
         tg.ready();
         const userId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : "guest_user";
 
-        // আপনার Firebase Project Config
+        // Firebase Project Config
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY", // এখানে আপনার Firebase API Key বসাবেন
+            apiKey: "YOUR_API_KEY",
             authDomain: "telegram-earn-app-bf23c.firebaseapp.com",
             databaseURL: "https://telegram-earn-app-bf23c-default-rtdb.firebaseio.com",
             projectId: "telegram-earn-app-bf23c",
@@ -75,9 +77,6 @@
         
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-
-        // AdsGram Integration (এখানে আপনার Block ID বসাবেন)
-        const AdController = window.AdsGram.init({ blockId: "YOUR_BLOCK_ID" });
 
         const today = new Date().toISOString().slice(0, 10);
         const userRef = db.ref('users/' + userId);
@@ -102,30 +101,36 @@
             }
         });
 
-        // অ্যাড দেখানোর ফাংশন
+        // Monetag অ্যাড দেখানোর ফাংশন
         function watchAd() {
             document.getElementById('status').innerText = "অ্যাড লোড হচ্ছে...";
             document.getElementById('status').style.color = "#ffc107";
 
-            AdController.show().then((result) => {
-                userRef.once('value').then((snapshot) => {
-                    const data = snapshot.val() || { balance: 0, todayCount: 0 };
-                    const newBalance = (data.balance || 0) + 10;
-                    const newCount = (data.todayCount || 0) + 1;
+            if (typeof show_11866445 === 'function') {
+                show_11866445('pop').then(() => {
+                    // সফলভাবে অ্যাড দেখা সম্পন্ন হলে পয়েন্ট যোগ হবে
+                    userRef.once('value').then((snapshot) => {
+                        const data = snapshot.val() || { balance: 0, todayCount: 0 };
+                        const newBalance = (data.balance || 0) + 10;
+                        const newCount = (data.todayCount || 0) + 1;
 
-                    userRef.update({
-                        balance: newBalance,
-                        todayCount: newCount,
-                        lastDate: today
+                        userRef.update({
+                            balance: newBalance,
+                            todayCount: newCount,
+                            lastDate: today
+                        });
+
+                        document.getElementById('status').innerText = "অভিনন্দন! ১০ পয়েন্ট যোগ করা হয়েছে।";
+                        document.getElementById('status').style.color = "#28a745";
                     });
-
-                    document.getElementById('status').innerText = "অভিনন্দন! ১০ পয়েন্ট যোগ করা হয়েছে।";
-                    document.getElementById('status').style.color = "#28a745";
+                }).catch(e => {
+                    document.getElementById('status').innerText = "বিজ্ঞাপনটি পুরোপুরি দেখা হয়নি অথবা লোড হতে ব্যর্থ হয়েছে।";
+                    document.getElementById('status').style.color = "#dc3545";
                 });
-            }).catch((err) => {
-                document.getElementById('status').innerText = "বিজ্ঞাপনটি পুরোপুরি দেখা হয়নি অথবা লোড হতে ব্যর্থ হয়েছে।";
+            } else {
+                document.getElementById('status').innerText = "বিজ্ঞাপন এখনো রেডি হয়নি, কিছুক্ষণ পর চেষ্টা করুন।";
                 document.getElementById('status').style.color = "#dc3545";
-            });
+            }
         }
     </script>
 </body>
