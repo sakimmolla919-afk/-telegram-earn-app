@@ -1,250 +1,406 @@
-<script>
-    // Telegram WebApp Initialization
-    const tg = window.Telegram.WebApp;
-    tg.ready();
-    tg.expand();
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watch & Earn App</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-    // User Data Extraction (With Fallback)
-    const tgUser = tg.initDataUnsafe ? tg.initDataUnsafe.user : null;
-    const userId = tgUser && tgUser.id ? tgUser.id.toString() : "guest_user";
-    
-    // Telegram First Name + Last Name Extract
-    let userName = "Guest User";
-    if (tgUser) {
-        const firstName = tgUser.first_name || "";
-        const lastName = tgUser.last_name || "";
-        userName = (firstName + " " + lastName).trim() || tgUser.username || "Telegram User";
-    }
+    <script src="https://alwingulla.com/88/tag.min.js" data-zone="11866445" async data-cfasync="false"></script>
 
-    // Firebase Config
-    const firebaseConfig = {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "telegram-earn-app-bf23c.firebaseapp.com",
-        databaseURL: "https://telegram-earn-app-bf23c-default-rtdb.firebaseio.com",
-        projectId: "telegram-earn-app-bf23c",
-        storageBucket: "telegram-earn-app-bf23c.appspot.com",
-        messagingSenderId: "314288083027",
-        appId: "1:314288083027:web:6bc9fec573...",
-        measurementId: "G-FLS411DZE3"
-    };
-    
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-    const today = new Date().toISOString().slice(0, 10);
-    const userRef = db.ref('users/' + userId);
-    let currentBalance = 0;
-    let todayCount = 0;
-    let isWatchingAd = false;
-    let timerInterval = null;
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body { 
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            color: #ffffff; 
+            padding: 15px; 
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 450px;
+        }
+        .card { 
+            background: rgba(255, 255, 255, 0.07); 
+            backdrop-filter: blur(10px);
+            padding: 20px; 
+            border-radius: 16px; 
+            margin-bottom: 20px; 
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            text-align: center;
+        }
+        h2 {
+            margin-top: 0;
+            color: #00e676;
+            font-size: 20px;
+        }
+        h3 {
+            margin-top: 0;
+            color: #00bcd4;
+            font-size: 18px;
+        }
+        .stat-box {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 15px;
+        }
+        button { 
+            background: linear-gradient(45deg, #11998e, #38ef7d); 
+            color: white; 
+            border: none; 
+            padding: 14px; 
+            font-size: 16px; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            margin-top: 12px;
+            width: 100%;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(56, 239, 125, 0.3);
+            transition: 0.3s;
+        }
+        button:disabled { 
+            background: #444; 
+            cursor: not-allowed;
+            color: #888;
+            box-shadow: none;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.4);
+            color: white;
+            font-size: 14px;
+            outline: none;
+        }
+        #status, #withdrawStatus {
+            margin-top: 12px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .info-text {
+            font-size: 12px;
+            color: #ccc;
+            margin-top: 5px;
+        }
+        #timerBox {
+            font-size: 16px;
+            color: #ffeb3b;
+            margin-top: 12px;
+            background: rgba(255, 235, 59, 0.1);
+            padding: 8px;
+            border-radius: 6px;
+            display: none;
+        }
+        .history-item {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 8px;
+            text-align: left;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .status-processing {
+            color: #ffc107;
+            font-weight: bold;
+        }
+        .status-successful {
+            color: #00e676;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
 
-    // Firebase Sync & Auto Update User Info
-    userRef.on('value', (snapshot) => {
-        const data = snapshot.val();
+    <div class="container">
+        <div class="card">
+            <h2>🎬 ভিডিও দেখুন এবং পয়েন্ট আয় করুন</h2>
+            
+            <div class="stat-box">
+                মোট ব্যালেন্স: <b id="balance" style="color: #ffca28; font-size: 20px;">0</b> পয়েন্ট
+            </div>
+            <div class="stat-box">
+                আজকে দেখা হয়েছে: <b id="watchedCount" style="color: #00e5ff;">0</b> / 30
+            </div>
+
+            <button id="adBtn" onclick="watchAd()">ভিডিও অ্যাড দেখুন</button>
+            
+            <div id="timerBox">⏱️ অপেক্ষা করুন: <span id="countdown">30</span> সেকেন্ড</div>
+            <p id="status"></p>
+        </div>
+
+        <div class="card">
+            <h3>💳 টাকা / রুপি তুলুন (Withdraw)</h3>
+            <p class="info-text">সর্বনিম্ন উইথড্র: ১০০০ পয়েন্ট = ₹১০ INR / ৳১০ BDT</p>
+            
+            <select id="paymentMethod">
+                <option value="UPI_INR">UPI / GPay / PhonePe / Paytm (INR ₹)</option>
+                <option value="bKash_BDT">bKash (BDT ৳)</option>
+                <option value="Nagad_BDT">Nagad (BDT ৳)</option>
+            </select>
+
+            <input type="text" id="accountNumber" placeholder="নম্বর বা UPI ID লিখুন (ex: user@upi)" />
+            <input type="number" id="withdrawPoints" placeholder="পয়েন্ট পরিমাণ (যেমন: 1000)" />
+
+            <button onclick="requestWithdraw()" style="background: linear-gradient(45deg, #2196F3, #21CBF3); box-shadow: 0 4px 15px rgba(33, 203, 243, 0.3);">উইথড্র রিকোয়েস্ট পাঠান</button>
+            <p id="withdrawStatus"></p>
+        </div>
+
+        <div class="card">
+            <h3>📜 উইথড্র হিস্টোরি (History)</h3>
+            <div id="historyList">
+                <p class="info-text">কোনো উইথড্র হিস্টোরি নেই</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Telegram WebApp Initialization
+        let userId = "guest_user";
+        let userName = "Guest User";
+
+        try {
+            if (window.Telegram && window.Telegram.WebApp) {
+                const tg = window.Telegram.WebApp;
+                tg.ready();
+                tg.expand();
+                if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                    userId = tg.initDataUnsafe.user.id ? tg.initDataUnsafe.user.id.toString() : "guest_user";
+                    userName = tg.initDataUnsafe.user.first_name || "User";
+                }
+            }
+        } catch (e) {
+            console.log("Telegram SDK Error", e);
+        }
+
+        // Firebase Realtime Database Connection
+        const firebaseConfig = {
+            databaseURL: "https://telegram-earn-app-bf23c-default-rtdb.firebaseio.com"
+        };
         
-        if (!data) {
-            // New User First Time Creation
-            userRef.set({
-                balance: 0,
-                lastDate: today,
-                todayCount: 0,
-                name: userName
+        let db = null;
+        let userRef = null;
+
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+            userRef = db.ref('users/' + userId);
+        } catch (e) {
+            console.log("Firebase Init Error", e);
+        }
+
+        const today = new Date().toISOString().slice(0, 10);
+        let currentBalance = 0;
+        let todayCount = 0;
+        let isWatchingAd = false;
+        let timerInterval = null;
+
+        // Firebase Sync
+        if (userRef) {
+            userRef.on('value', (snapshot) => {
+                const data = snapshot.val() || { balance: 0, lastDate: today, todayCount: 0, name: userName };
+                
+                todayCount = data.todayCount || 0;
+                if (data.lastDate !== today) {
+                    todayCount = 0;
+                    userRef.update({ lastDate: today, todayCount: 0, name: userName });
+                } else {
+                    userRef.update({ name: userName });
+                }
+
+                currentBalance = data.balance || 0;
+                document.getElementById('balance').innerText = currentBalance;
+                document.getElementById('watchedCount').innerText = todayCount;
+
+                if (todayCount >= 30) {
+                    document.getElementById('adBtn').disabled = true;
+                    document.getElementById('status').innerText = "আজকের ভিডিও সীমা (৩০টি) শেষ! আগামীকাল আবার চেষ্টা করুন।";
+                    document.getElementById('status').style.color = "#ff5252";
+                }
             });
-            return;
-        }
 
-        // Existing User Updates
-        todayCount = data.todayCount || 0;
-        currentBalance = data.balance || 0;
+            // Load Withdrawal History
+            db.ref('withdrawals').orderByChild('userId').equalTo(userId).on('value', (snapshot) => {
+                const historyList = document.getElementById('historyList');
+                historyList.innerHTML = '';
 
-        let updatePayload = {};
+                if (snapshot.exists()) {
+                    snapshot.forEach((childSnapshot) => {
+                        const item = childSnapshot.val();
+                        const statusClass = item.status === 'successful' ? 'status-successful' : 'status-processing';
+                        const statusText = item.status === 'successful' ? 'Successful' : 'Processing';
 
-        // Update name if missing or changed
-        if (!data.name || (data.name === "Guest User" && userName !== "Guest User")) {
-            updatePayload.name = userName;
-        }
-
-        // Reset Daily Count on New Day
-        if (data.lastDate !== today) {
-            todayCount = 0;
-            updatePayload.lastDate = today;
-            updatePayload.todayCount = 0;
-        }
-
-        if (Object.keys(updatePayload).length > 0) {
-            userRef.update(updatePayload);
-        }
-
-        document.getElementById('balance').innerText = currentBalance;
-        document.getElementById('watchedCount').innerText = todayCount;
-
-        if (todayCount >= 30) {
-            document.getElementById('adBtn').disabled = true;
-            document.getElementById('status').innerText = "আজকের ভিডিও সীমা (৩০টি) শেষ! আগামীকাল আবার চেষ্টা করুন।";
-            document.getElementById('status').style.color = "#ff5252";
-        }
-    });
-
-    // Load Withdrawal History
-    db.ref('withdrawals').orderByChild('userId').equalTo(userId).on('value', (snapshot) => {
-        const historyList = document.getElementById('historyList');
-        historyList.innerHTML = '';
-
-        if (snapshot.exists()) {
-            snapshot.forEach((childSnapshot) => {
-                const item = childSnapshot.val();
-                const statusClass = item.status === 'successful' ? 'status-successful' : 'status-processing';
-                const statusText = item.status === 'successful' ? 'Successful' : 'Processing';
-
-                const div = document.createElement('div');
-                div.className = 'history-item';
-                div.innerHTML = `
-                    <div>
-                        <b>${item.amount}</b> (${item.method})<br>
-                        <span style="font-size:11px; color:#aaa;">${item.timestamp}</span>
-                    </div>
-                    <div class="${statusClass}">${statusText}</div>
-                `;
-                historyList.appendChild(div);
+                        const div = document.createElement('div');
+                        div.className = 'history-item';
+                        div.innerHTML = `
+                            <div>
+                                <b>${item.amount}</b> (${item.method})<br>
+                                <span style="font-size:11px; color:#aaa;">${item.timestamp}</span>
+                            </div>
+                            <div class="${statusClass}">${statusText}</div>
+                        `;
+                        historyList.appendChild(div);
+                    });
+                } else {
+                    historyList.innerHTML = '<p class="info-text">কোনো উইথড্র হিস্টোরি নেই</p>';
+                }
             });
-        } else {
-            historyList.innerHTML = '<p class="info-text">কোনো উইথড্র হিস্টোরি নেই</p>';
-        }
-    });
-
-    // Watch Ad Logic with 30-Second Timer
-    function watchAd() {
-        if (todayCount >= 30) {
-            alert("আজকের ভিডিও সীমা শেষ!");
-            return;
         }
 
-        const nextVideoNo = todayCount + 1;
-        alert(`${nextVideoNo} নম্বর ভিডিও প্রসেস করা হচ্ছে।`);
+        // Watch Ad Logic with 30-Second Timer
+        function watchAd() {
+            if (todayCount >= 30) {
+                alert("আজকের ভিডিও সীমা শেষ!");
+                return;
+            }
 
-        const statusElem = document.getElementById('status');
-        const timerBox = document.getElementById('timerBox');
-        const countdownElem = document.getElementById('countdown');
-        const adBtn = document.getElementById('adBtn');
+            const nextVideoNo = todayCount + 1;
+            alert(`${nextVideoNo} নম্বর ভিডিও প্রসেস করা হচ্ছে।`);
 
-        const showAd = window.show_11866445 || window.show || (window.monetag && window.monetag.show);
+            const statusElem = document.getElementById('status');
+            const timerBox = document.getElementById('timerBox');
+            const countdownElem = document.getElementById('countdown');
+            const adBtn = document.getElementById('adBtn');
 
-        if (typeof showAd === 'function') {
-            showAd();
-        } else if (typeof show_11866445 !== 'undefined') {
-            show_11866445();
-        }
+            try {
+                if (typeof show_11866445 === 'function') {
+                    show_11866445();
+                }
+            } catch (e) {}
 
-        isWatchingAd = true;
-        adBtn.disabled = true;
-        timerBox.style.display = "block";
-        statusElem.innerText = `${nextVideoNo} নম্বর ভিডিও চালু হয়েছে, পুরো ৩০ সেকেন্ড দেখুন...`;
-        statusElem.style.color = "#ffeb3b";
+            isWatchingAd = true;
+            adBtn.disabled = true;
+            timerBox.style.display = "block";
+            statusElem.innerText = `${nextVideoNo} নম্বর ভিডিও চালু হয়েছে, পুরো ৩০ সেকেন্ড দেখুন...`;
+            statusElem.style.color = "#ffeb3b";
 
-        let timeLeft = 30;
-        countdownElem.innerText = timeLeft;
-
-        clearInterval(timerInterval);
-        timerInterval = setInterval(() => {
-            timeLeft--;
+            let timeLeft = 30;
             countdownElem.innerText = timeLeft;
 
-            if (timeLeft <= 0) {
-                clearInterval(timerInterval);
-                timerBox.style.display = "none";
-                isWatchingAd = false;
-                adBtn.disabled = false;
-                addRewardPoints();
-            }
-        }, 1000);
-    }
-
-    // Cancel on Minimize
-    document.addEventListener("visibilitychange", function() {
-        if (document.hidden && isWatchingAd) {
             clearInterval(timerInterval);
-            isWatchingAd = false;
-            document.getElementById('timerBox').style.display = "none";
-            document.getElementById('adBtn').disabled = false;
-            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                countdownElem.innerText = timeLeft;
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    timerBox.style.display = "none";
+                    isWatchingAd = false;
+                    adBtn.disabled = false;
+                    addRewardPoints();
+                }
+            }, 1000);
+        }
+
+        // Cancel on Minimize
+        document.addEventListener("visibilitychange", function() {
+            if (document.hidden && isWatchingAd) {
+                clearInterval(timerInterval);
+                isWatchingAd = false;
+                document.getElementById('timerBox').style.display = "none";
+                document.getElementById('adBtn').disabled = false;
+                
+                const statusElem = document.getElementById('status');
+                statusElem.innerText = "আপনি ৩০ সেকেন্ডের আগে ব্যাক করেছেন! পয়েন্ট পেতে ভিডিওটি পুরো দেখুন।";
+                statusElem.style.color = "#ff5252";
+            }
+        });
+
+        function addRewardPoints() {
             const statusElem = document.getElementById('status');
-            statusElem.innerText = "আপনি ৩০ সেকেন্ডের আগে ব্যাক করেছেন! পয়েন্ট পেতে ভিডিওটি পুরো দেখুন।";
-            statusElem.style.color = "#ff5252";
-        }
-    });
+            if (!userRef) return;
 
-    // Reward Point Calculation
-    function addRewardPoints() {
-        const statusElem = document.getElementById('status');
-        userRef.once('value').then((snapshot) => {
-            const data = snapshot.val() || { balance: 0, todayCount: 0 };
-            const newBalance = (data.balance || 0) + 10;
-            const newCount = (data.todayCount || 0) + 1;
+            userRef.once('value').then((snapshot) => {
+                const data = snapshot.val() || { balance: 0, todayCount: 0 };
+                const newBalance = (data.balance || 0) + 10;
+                const newCount = (data.todayCount || 0) + 1;
 
-            userRef.update({
-                balance: newBalance,
-                todayCount: newCount,
-                lastDate: today,
-                name: userName
+                userRef.update({
+                    balance: newBalance,
+                    todayCount: newCount,
+                    lastDate: today,
+                    name: userName
+                });
+
+                statusElem.innerText = "অভিনন্দন! ১০ পয়েন্ট সফলভাবে যোগ করা হয়েছে।";
+                statusElem.style.color = "#00e676";
             });
-
-            statusElem.innerText = "অভিনন্দন! ১০ পয়েন্ট সফলভাবে যোগ করা হয়েছে।";
-            statusElem.style.color = "#00e676";
-        });
-    }
-
-    // Withdraw Logic
-    function requestWithdraw() {
-        const method = document.getElementById('paymentMethod').value;
-        const account = document.getElementById('accountNumber').value.trim();
-        const points = parseInt(document.getElementById('withdrawPoints').value);
-        const wStatus = document.getElementById('withdrawStatus');
-
-        if (!account) {
-            wStatus.innerText = "দয়া করে সঠিক নম্বর বা UPI ID লিখুন।";
-            wStatus.style.color = "#ff5252";
-            return;
         }
 
-        if (isNaN(points) || points < 1000) {
-            wStatus.innerText = "সর্বনিম্ন ১০০০ পয়েন্ট উইথড্র করতে হবে।";
-            wStatus.style.color = "#ff5252";
-            return;
+        // Withdraw Logic
+        function requestWithdraw() {
+            const method = document.getElementById('paymentMethod').value;
+            const account = document.getElementById('accountNumber').value.trim();
+            const points = parseInt(document.getElementById('withdrawPoints').value);
+            const wStatus = document.getElementById('withdrawStatus');
+
+            if (!account) {
+                wStatus.innerText = "দয়া করে সঠিক নম্বর বা UPI ID লিখুন।";
+                wStatus.style.color = "#ff5252";
+                return;
+            }
+
+            if (isNaN(points) || points < 1000) {
+                wStatus.innerText = "সর্বনিম্ন ১০০০ পয়েন্ট উইথড্র করতে হবে।";
+                wStatus.style.color = "#ff5252";
+                return;
+            }
+
+            if (points > currentBalance) {
+                wStatus.innerText = "আপনার কাছে পর্যাপ্ত পয়েন্ট নেই!";
+                wStatus.style.color = "#ff5252";
+                return;
+            }
+
+            wStatus.innerText = "প্রসেসিং হচ্ছে...";
+            wStatus.style.color = "#ffeb3b";
+
+            const newBalance = currentBalance - points;
+            const currency = method.includes('INR') ? 'INR (₹)' : 'BDT (৳)';
+            const calculatedAmount = (points / 100).toFixed(2);
+
+            if (userRef && db) {
+                userRef.update({ balance: newBalance }).then(() => {
+                    const withdrawRef = db.ref('withdrawals').push();
+                    withdrawRef.set({
+                        userId: userId,
+                        userName: userName,
+                        method: method,
+                        account: account,
+                        points: points,
+                        amount: calculatedAmount + ' ' + currency,
+                        status: 'processing',
+                        timestamp: new Date().toLocaleDateString()
+                    }).then(() => {
+                        wStatus.innerText = "উইথড্র রিকোয়েস্ট জমা হয়েছে!";
+                        wStatus.style.color = "#00e676";
+                        document.getElementById('accountNumber').value = '';
+                        document.getElementById('withdrawPoints').value = '';
+                    });
+                }).catch((err) => {
+                    wStatus.innerText = "সমস্যা হয়েছে, পরে আবার চেষ্টা করুন।";
+                    wStatus.style.color = "#ff5252";
+                });
+            }
         }
-
-        if (points > currentBalance) {
-            wStatus.innerText = "আপনার কাছে পর্যাপ্ত পয়েন্ট নেই!";
-            wStatus.style.color = "#ff5252";
-            return;
-        }
-
-        wStatus.innerText = "প্রসেসিং হচ্ছে...";
-        wStatus.style.color = "#ffeb3b";
-
-        const newBalance = currentBalance - points;
-        const currency = method.includes('INR') ? 'INR (₹)' : 'BDT (৳)';
-        const calculatedAmount = (points / 100).toFixed(2);
-
-        userRef.update({ balance: newBalance }).then(() => {
-            const withdrawRef = db.ref('withdrawals').push();
-            withdrawRef.set({
-                userId: userId,
-                userName: userName,
-                method: method,
-                account: account,
-                points: points,
-                amount: calculatedAmount + ' ' + currency,
-                status: 'processing',
-                timestamp: new Date().toLocaleDateString()
-            }).then(() => {
-                wStatus.innerText = "উইথড্র রিকোয়েস্ট জমা হয়েছে!";
-                wStatus.style.color = "#00e676";
-                document.getElementById('accountNumber').value = '';
-                document.getElementById('withdrawPoints').value = '';
-            });
-        }).catch((err) => {
-            wStatus.innerText = "সমস্যা হয়েছে, পরে আবার চেষ্টা করুন।";
-            wStatus.style.color = "#ff5252";
-        });
-    }
-</script>
+    </script>
+</body>
+</html>
