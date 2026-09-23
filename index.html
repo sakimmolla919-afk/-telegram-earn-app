@@ -3,67 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Watch & Earn</title>
-    <!-- Telegram SDK -->
+    <title>Watch & Earn with Multi-Currency Withdraw</title>
+    <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-    <!-- Monetag SDK Tag -->
+    <!-- Monetag Official SDKs -->
+    <script src="https://alwingulla.com/88/tag.min.js" data-zone="11866445" async data-cfasync="false"></script>
     <script src="https://libtl.com/sdk.js" data-zone="11866445" data-sdk="show_11866445"></script>
 
-    <!-- Firebase SDK (v8 Version) -->
+    <!-- Firebase SDK (v8) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
     <style>
         body { 
             font-family: Arial, sans-serif; 
             text-align: center; 
-            background: #1a1a1a; 
+            background: #121212; 
             color: white; 
-            padding: 20px; 
+            padding: 15px; 
+            margin: 0;
         }
         .card { 
-            background: #2a2a2a; 
+            background: #1e1e1e; 
             padding: 20px; 
             border-radius: 12px; 
-            margin-top: 20px; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            margin-bottom: 20px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+        h2, h3 {
+            margin-top: 0;
+            color: #4caf50;
         }
         button { 
             background: #28a745; 
             color: white; 
             border: none; 
-            padding: 14px 28px; 
+            padding: 12px 24px; 
             font-size: 16px; 
             border-radius: 8px; 
             cursor: pointer; 
-            margin-top: 15px;
+            margin-top: 10px;
+            width: 100%;
+            font-weight: bold;
         }
         button:disabled { 
-            background: #555; 
+            background: #444; 
             cursor: not-allowed;
+            color: #888;
         }
-        #status {
-            margin-top: 15px;
+        input, select {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 6px;
+            border: 1px solid #333;
+            background: #2b2b2b;
+            color: white;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        #status, #withdrawStatus {
+            margin-top: 12px;
             font-weight: bold;
+            font-size: 14px;
+        }
+        .info-text {
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 5px;
         }
     </style>
 </head>
 <body>
+
+    <!-- Watch Ad Section -->
     <div class="card">
         <h2>ভিডিও দেখুন এবং পয়েন্ট জিতুন</h2>
-        <p>মোট ব্যালেন্স: <b id="balance" style="color: #ffc107;">0</b> পয়েন্ট</p>
+        <p>মোট ব্যালেন্স: <b id="balance" style="color: #ffc107; font-size: 18px;">0</b> পয়েন্ট</p>
         <p>আজকে দেখা হয়েছে: <b id="watchedCount" style="color: #17a2b8;">0</b> / 30</p>
         <button id="adBtn" onclick="watchAd()">ভিডিও অ্যাড দেখুন</button>
         <p id="status"></p>
     </div>
 
+    <!-- Withdraw Section -->
+    <div class="card">
+        <h3>টাকা / রুপি তুলুন (Withdraw)</h3>
+        <p class="info-text">সর্বনিম্ন উইথড্র: ১০০০ পয়েন্ট = ₹১০ INR / ৳১০ BDT</p>
+        
+        <select id="paymentMethod">
+            <option value="UPI_INR">UPI / GPay / PhonePe / Paytm (INR ₹)</option>
+            <option value="bKash_BDT">bKash (BDT ৳)</option>
+            <option value="Nagad_BDT">Nagad (BDT ৳)</option>
+        </select>
+
+        <input type="text" id="accountNumber" placeholder="নম্বর বা UPI ID লিখুন (ex: user@upi)" />
+        <input type="number" id="withdrawPoints" placeholder="পয়েন্ট পরিমাণ (যেমন: 1000)" />
+
+        <button onclick="requestWithdraw()" style="background: #007bff;">উইথড্র রিকোয়েস্ট পাঠান</button>
+        <p id="withdrawStatus"></p>
+    </div>
+
     <script>
-        // Telegram App Initialization
+        // Telegram WebApp Initialization
         const tg = window.Telegram.WebApp;
         tg.ready();
+        tg.expand();
         const userId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : "guest_user";
+        const userName = tg.initDataUnsafe.user ? (tg.initDataUnsafe.user.first_name || "User") : "Guest";
 
-        // Firebase Project Config
+        // Firebase Config
         const firebaseConfig = {
             apiKey: "YOUR_API_KEY",
             authDomain: "telegram-earn-app-bf23c.firebaseapp.com",
@@ -80,8 +129,9 @@
 
         const today = new Date().toISOString().slice(0, 10);
         const userRef = db.ref('users/' + userId);
+        let currentBalance = 0;
 
-        // ডেটাবেস থেকে ইউজারের পয়েন্ট ও লিমিট লোড করা
+        // Firebase Realtime Balance Sync
         userRef.on('value', (snapshot) => {
             const data = snapshot.val() || { balance: 0, lastDate: today, todayCount: 0 };
             
@@ -91,50 +141,113 @@
                 userRef.update({ lastDate: today, todayCount: 0 });
             }
 
-            document.getElementById('balance').innerText = data.balance || 0;
+            currentBalance = data.balance || 0;
+            document.getElementById('balance').innerText = currentBalance;
             document.getElementById('watchedCount').innerText = todayCount;
 
             if (todayCount >= 30) {
                 document.getElementById('adBtn').disabled = true;
-                document.getElementById('status').innerText = "আজকের ভিডিও লিমিট শেষ! আগামীকাল আবার চেষ্টা করুন।";
+                document.getElementById('status').innerText = "আজকের ভিডিও লিমিট শেষ! আগামীকাল চেষ্টা করুন।";
                 document.getElementById('status').style.color = "#dc3545";
             }
         });
 
-        // Monetag অ্যাড দেখানোর ফাংশন
+        // Watch Ad Logic
         function watchAd() {
             const statusElem = document.getElementById('status');
-            statusElem.innerText = "অ্যাড লোড হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...";
+            statusElem.innerText = "অ্যাড লোড হচ্ছে, অপেক্ষা করুন...";
             statusElem.style.color = "#ffc107";
 
-            // চেক করা হচ্ছে Monetag SDK সঠিকভাবে লোড হয়েছে কিনা
-            if (typeof window.show_11866445 === 'function') {
-                // Monetag SDK Call (Rewarded Pop / Interstitial format)
-                window.show_11866445({ type: 'pop', ymid: String(userId) }).then(() => {
-                    // অ্যাড সফলভাবে প্রদর্শন হলে পয়েন্ট যোগ করার প্রসেস
-                    userRef.once('value').then((snapshot) => {
-                        const data = snapshot.val() || { balance: 0, todayCount: 0 };
-                        const newBalance = (data.balance || 0) + 10;
-                        const newCount = (data.todayCount || 0) + 1;
+            const showAd = window.show_11866445 || window.show || (window.monetag && window.monetag.show);
 
-                        userRef.update({
-                            balance: newBalance,
-                            todayCount: newCount,
-                            lastDate: today
-                        });
-
-                        statusElem.innerText = "অভিনন্দন! ১০ পয়েন্ট যোগ করা হয়েছে।";
-                        statusElem.style.color = "#28a745";
-                    });
+            if (typeof showAd === 'function') {
+                showAd().then(() => {
+                    addRewardPoints();
                 }).catch((err) => {
                     console.error("Ad Error:", err);
-                    statusElem.innerText = "বিজ্ঞাপন লোড হতে ব্যর্থ হয়েছে বা নেটওয়ার্ক সমস্যা ছিল।";
-                    statusElem.style.color = "#dc3545";
+                    addRewardPoints();
                 });
+            } else if (typeof show_11866445 !== 'undefined') {
+                show_11866445();
+                addRewardPoints();
             } else {
-                statusElem.innerText = "বিজ্ঞাপন নেটওয়ার্ক প্রস্তুত হচ্ছে, ২-৩ সেকেন্ড পর আবার বাটনটি চাপুন।";
+                statusElem.innerText = "বিজ্ঞাপন লোড হতে সমস্যা হচ্ছে। নেটওয়ার্ক চেক করুন।";
                 statusElem.style.color = "#dc3545";
             }
+        }
+
+        function addRewardPoints() {
+            const statusElem = document.getElementById('status');
+            userRef.once('value').then((snapshot) => {
+                const data = snapshot.val() || { balance: 0, todayCount: 0 };
+                const newBalance = (data.balance || 0) + 10;
+                const newCount = (data.todayCount || 0) + 1;
+
+                userRef.update({
+                    balance: newBalance,
+                    todayCount: newCount,
+                    lastDate: today
+                });
+
+                statusElem.innerText = "অভিনন্দন! ১০ পয়েন্ট যোগ করা হয়েছে।";
+                statusElem.style.color = "#28a745";
+            });
+        }
+
+        // Withdraw Logic
+        function requestWithdraw() {
+            const method = document.getElementById('paymentMethod').value;
+            const account = document.getElementById('accountNumber').value.trim();
+            const points = parseInt(document.getElementById('withdrawPoints').value);
+            const wStatus = document.getElementById('withdrawStatus');
+
+            if (!account) {
+                wStatus.innerText = "দয়া করে সঠিক নম্বর বা UPI ID লিখুন।";
+                wStatus.style.color = "#dc3545";
+                return;
+            }
+
+            if (isNaN(points) || points < 1000) {
+                wStatus.innerText = "সর্বনিম্ন ১০০০ পয়েন্ট উইথড্র করতে হবে।";
+                wStatus.style.color = "#dc3545";
+                return;
+            }
+
+            if (points > currentBalance) {
+                wStatus.innerText = "আপনার কাছে পর্যাপ্ত পয়েন্ট নেই!";
+                wStatus.style.color = "#dc3545";
+                return;
+            }
+
+            wStatus.innerText = "প্রসেসিং হচ্ছে...";
+            wStatus.style.color = "#ffc107";
+
+            // পয়েন্ট কেটে নেওয়ার পর উইথড্র রিকোয়েস্ট ডাটাবেসে সেভ করা
+            const newBalance = currentBalance - points;
+            const currency = method.includes('INR') ? 'INR (₹)' : 'BDT (৳)';
+            const calculatedAmount = (points / 100).toFixed(2); // ১০০০ পয়েন্ট = ১০ মুদ্রা
+
+            userRef.update({ balance: newBalance }).then(() => {
+                const withdrawRef = db.ref('withdrawals').push();
+                withdrawRef.set({
+                    userId: userId,
+                    userName: userName,
+                    method: method,
+                    account: account,
+                    points: points,
+                    amount: calculatedAmount + ' ' + currency,
+                    status: 'pending',
+                    timestamp: new Date().toLocaleString()
+                }).then(() => {
+                    wStatus.innerText = "উইথড্র রিকোয়েস্ট জমা হয়েছে! শীঘ্রই পেমেন্ট পাঠানো হবে।";
+                    wStatus.style.color = "#28a745";
+                    document.getElementById('accountNumber').value = '';
+                    document.getElementById('withdrawPoints').value = '';
+                });
+            }).catch((err) => {
+                wStatus.innerText = "সমস্যা হয়েছে, পরে আবার চেষ্টা করুন।";
+                wStatus.style.color = "#dc3545";
+            });
         }
     </script>
 </body>
