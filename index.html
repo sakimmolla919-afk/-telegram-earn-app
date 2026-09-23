@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Watch & Earn Premium App</title>
+    <title>Watch & Earn App</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
     <script src="https://alwingulla.com/88/tag.min.js" data-zone="11866445" async data-cfasync="false"></script>
@@ -34,7 +34,7 @@
         .card { 
             background: rgba(255, 255, 255, 0.07); 
             backdrop-filter: blur(10px);
-            padding: 22px; 
+            padding: 20px; 
             border-radius: 16px; 
             margin-bottom: 20px; 
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -108,6 +108,25 @@
             border-radius: 6px;
             display: none;
         }
+        .history-item {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 8px;
+            text-align: left;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .status-processing {
+            color: #ffc107;
+            font-weight: bold;
+        }
+        .status-successful {
+            color: #00e676;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -145,6 +164,13 @@
             <button onclick="requestWithdraw()" style="background: linear-gradient(45deg, #2196F3, #21CBF3); box-shadow: 0 4px 15px rgba(33, 203, 243, 0.3);">উইথড্র রিকোয়েস্ট পাঠান</button>
             <p id="withdrawStatus"></p>
         </div>
+
+        <div class="card">
+            <h3>📜 উইথড্র হিস্টোরি (History)</h3>
+            <div id="historyList">
+                <p class="info-text">কোনো উইথড্র হিস্টোরি নেই</p>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -153,7 +179,7 @@
         tg.ready();
         tg.expand();
         const userId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : "guest_user";
-        const userName = tg.initDataUnsafe.user ? (tg.initDataUnsafe.user.first_name || "User") : "Guest";
+        const userName = tg.initDataUnsafe.user ? (tg.initDataUnsafe.user.first_name || "User") : "Guest User";
 
         // Firebase Config
         const firebaseConfig = {
@@ -179,12 +205,14 @@
 
         // Firebase Sync
         userRef.on('value', (snapshot) => {
-            const data = snapshot.val() || { balance: 0, lastDate: today, todayCount: 0 };
+            const data = snapshot.val() || { balance: 0, lastDate: today, todayCount: 0, name: userName };
             
             todayCount = data.todayCount || 0;
             if (data.lastDate !== today) {
                 todayCount = 0;
-                userRef.update({ lastDate: today, todayCount: 0 });
+                userRef.update({ lastDate: today, todayCount: 0, name: userName });
+            } else {
+                userRef.update({ name: userName });
             }
 
             currentBalance = data.balance || 0;
@@ -198,7 +226,34 @@
             }
         });
 
-        // Watch Ad Logic with Video Number & 30-Second Timer
+        // Load Withdrawal History
+        db.ref('withdrawals').orderByChild('userId').equalTo(userId.toString()).on('value', (snapshot) => {
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = '';
+
+            if (snapshot.exists()) {
+                snapshot.forEach((childSnapshot) => {
+                    const item = childSnapshot.val();
+                    const statusClass = item.status === 'successful' ? 'status-successful' : 'status-processing';
+                    const statusText = item.status === 'successful' ? 'Successful' : 'Processing';
+
+                    const div = document.createElement('div');
+                    div.className = 'history-item';
+                    div.innerHTML = `
+                        <div>
+                            <b>${item.amount}</b> (${item.method})<br>
+                            <span style="font-size:11px; color:#aaa;">${item.timestamp}</span>
+                        </div>
+                        <div class="${statusClass}">${statusText}</div>
+                    `;
+                    historyList.appendChild(div);
+                });
+            } else {
+                historyList.innerHTML = '<p class="info-text">কোনো উইথড্র হিস্টোরি নেই</p>';
+            }
+        });
+
+        // Watch Ad Logic with 30-Second Timer
         function watchAd() {
             if (todayCount >= 30) {
                 alert("আজকের ভিডিও সীমা শেষ!");
@@ -206,9 +261,7 @@
             }
 
             const nextVideoNo = todayCount + 1;
-            
-            // ডায়ালগ/পপআপ নোটিফিকেশন
-            alert(`${nextVideoNo} নম্বর ভিডিও প্রসেস করা হচ্ছে। ভিডিওটি চালু হলে অন্তত ৩০ সেকেন্ড সময় দিন।`);
+            alert(`${nextVideoNo} নম্বর ভিডিও প্রসেস করা হচ্ছে।`);
 
             const statusElem = document.getElementById('status');
             const timerBox = document.getElementById('timerBox');
@@ -223,7 +276,6 @@
                 show_11866445();
             }
 
-            // টাইমার শুরু
             isWatchingAd = true;
             adBtn.disabled = true;
             timerBox.style.display = "block";
@@ -248,7 +300,7 @@
             }, 1000);
         }
 
-        // ইউজার ব্যাক বা পেজ ছেড়ে দিলে টাইমার ক্যানসেল ও সতর্কবার্তা
+        // Cancel on Minimize
         document.addEventListener("visibilitychange", function() {
             if (document.hidden && isWatchingAd) {
                 clearInterval(timerInterval);
@@ -272,7 +324,8 @@
                 userRef.update({
                     balance: newBalance,
                     todayCount: newCount,
-                    lastDate: today
+                    lastDate: today,
+                    name: userName
                 });
 
                 statusElem.innerText = "অভিনন্দন! ১০ পয়েন্ট সফলভাবে যোগ করা হয়েছে।";
@@ -315,16 +368,16 @@
             userRef.update({ balance: newBalance }).then(() => {
                 const withdrawRef = db.ref('withdrawals').push();
                 withdrawRef.set({
-                    userId: userId,
+                    userId: userId.toString(),
                     userName: userName,
                     method: method,
                     account: account,
                     points: points,
                     amount: calculatedAmount + ' ' + currency,
-                    status: 'pending',
-                    timestamp: new Date().toLocaleString()
+                    status: 'processing',
+                    timestamp: new Date().toLocaleDateString()
                 }).then(() => {
-                    wStatus.innerText = "উইথড্র রিকোয়েস্ট জমা হয়েছে! শীঘ্রই পেমেন্ট পাঠানো হবে।";
+                    wStatus.innerText = "উইথড্র রিকোয়েস্ট জমা হয়েছে!";
                     wStatus.style.color = "#00e676";
                     document.getElementById('accountNumber').value = '';
                     document.getElementById('withdrawPoints').value = '';
