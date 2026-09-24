@@ -1,158 +1,414 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Earn Money App</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #1e293b;
-      color: #ffffff;
-      margin: 0;
-      padding: 15px;
-    }
-    .card {
-      background-color: #0f172a;
-      border: 1px solid #334155;
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 20px;
-      text-align: center;
-    }
-    .btn {
-      background-color: #10b981;
-      color: white;
-      border: none;
-      padding: 12px 20px;
-      font-size: 16px;
-      border-radius: 8px;
-      cursor: pointer;
-      width: 100%;
-      margin-top: 10px;
-      font-weight: bold;
-    }
-    .btn:disabled {
-      background-color: #475569;
-      cursor: not-allowed;
-    }
-    .status-box {
-      background-color: #1e293b;
-      border-radius: 8px;
-      padding: 10px;
-      margin-top: 15px;
-      color: #fbbf24;
-      font-weight: bold;
-    }
-    .alert-msg {
-      color: #34d399;
-      margin-top: 10px;
-      display: none;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watch & Earn App</title>
+    <!-- Telegram WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Firebase SDK (v8) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body { 
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            color: #ffffff; 
+            padding: 15px; 
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 450px;
+        }
+        .card { 
+            background: rgba(255, 255, 255, 0.07); 
+            backdrop-filter: blur(10px);
+            padding: 20px; 
+            border-radius: 16px; 
+            margin-bottom: 20px; 
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            text-align: center;
+        }
+        h2 { margin-top: 0; color: #00e676; font-size: 20px; }
+        h3 { margin-top: 0; color: #00bcd4; font-size: 18px; }
+        .stat-box {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 15px;
+        }
+        button { 
+            background: linear-gradient(45deg, #11998e, #38ef7d); 
+            color: white; 
+            border: none; 
+            padding: 14px; 
+            font-size: 16px; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            margin-top: 12px;
+            width: 100%;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(56, 239, 125, 0.3);
+            transition: 0.3s;
+        }
+        button:disabled { 
+            background: #444; 
+            cursor: not-allowed;
+            color: #888;
+            box-shadow: none;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.4);
+            color: white;
+            font-size: 14px;
+            outline: none;
+        }
+        #status, #withdrawStatus {
+            margin-top: 12px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .info-text { font-size: 12px; color: #ccc; margin-top: 5px; }
+        #timerBox {
+            font-size: 16px;
+            color: #ffeb3b;
+            margin-top: 12px;
+            background: rgba(255, 235, 59, 0.1);
+            padding: 8px;
+            border-radius: 6px;
+            display: none;
+        }
+        .history-item {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 8px;
+            text-align: left;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .status-processing { color: #ffc107; font-weight: bold; }
+        .status-successful { color: #00e676; font-weight: bold; }
+    </style>
 </head>
 <body>
 
-  <!-- ভিডিও দিয়ে পয়েন্ট আয় কার্ড -->
-  <div class="card">
-    <h2>🎬 ভিডিও দেখুন এবং পয়েন্ট আয় করুন</h2>
-    <p>মোট ব্যালেন্স: <span id="user-points">150</span> পয়েন্ট</p>
-    <p>আজকে দেখা হয়েছে: <span id="ads-watched">5</span> / 100</p>
+    <div class="container">
+        <!-- Watch Ad Section -->
+        <div class="card">
+            <h2>🎬 ভিডিও দেখুন এবং পয়েন্ট আয় করুন</h2>
+            
+            <div class="stat-box">
+                মোট ব্যালেন্স: <b id="balance" style="color: #ffca28; font-size: 20px;">0</b> পয়েন্ট
+            </div>
+            <div class="stat-box">
+                আজকে দেখা হয়েছে: <b id="watchedCount" style="color: #00e5ff;">0</b> / 100
+            </div>
 
-    <button id="ad-btn" class="btn" onclick="openAdAndStartTimer()">ভিডিও অ্যাড দেখুন</button>
+            <button id="adBtn" onclick="watchAd()">ভিডিও অ্যাড দেখুন</button>
+            
+            <div id="timerBox">⏱️ অপেক্ষা করুন: <span id="countdown">30</span> সেকেন্ড</div>
+            <p id="status"></p>
+        </div>
 
-    <div id="status-container" class="status-box" style="display: none;">
-      <span id="timer-text">অপেক্ষা করুন: 30 সেকেন্ড</span>
+        <!-- Withdraw Section -->
+        <div class="card">
+            <h3>💳 টাকা / রুপি তুলুন (Withdraw)</h3>
+            <p class="info-text">সর্বনিম্ন উইথড্র: ১০০০ পয়েন্ট = ₹১০ INR / ৳১০ BDT</p>
+            
+            <select id="paymentMethod">
+                <option value="UPI_INR">UPI / GPay / PhonePe / Paytm (INR ₹)</option>
+                <option value="bKash_BDT">bKash (BDT ৳)</option>
+                <option value="Nagad_BDT">Nagad (BDT ৳)</option>
+            </select>
+
+            <input type="text" id="accountNumber" placeholder="নম্বর বা UPI ID লিখুন (ex: user@upi)" />
+            <input type="number" id="withdrawPoints" placeholder="পয়েন্ট পরিমাণ (যেমন: 1000)" />
+
+            <button onclick="requestWithdraw()" style="background: linear-gradient(45deg, #2196F3, #21CBF3); box-shadow: 0 4px 15px rgba(33, 203, 243, 0.3);">উইথড্র রিকোয়েস্ট পাঠান</button>
+            <p id="withdrawStatus"></p>
+        </div>
+
+        <!-- Withdraw History Section -->
+        <div class="card">
+            <h3>📜 উইথড্র হিস্টোরি (History)</h3>
+            <div id="historyList">
+                <p class="info-text">কোনো উইথড্র হিস্টোরি নেই</p>
+            </div>
+        </div>
     </div>
 
-    <div id="success-msg" class="alert-msg">
-      অভিনন্দন! ১০ পয়েন্ট সফলভাবে যোগ করা হয়েছে!
-    </div>
-  </div>
+    <script>
+        // Updated Direct Monetag Link
+        const MONETAG_DIRECT_LINK = "https://omg10.com/4/11492969";
 
-  <script>
-    let points = 150;
-    let watchedCount = 5;
-    let timeLeft = 30;
-    let countdownTimer = null;
-    let isTimerRunning = false;
+        // Telegram WebApp Initialization
+        let userId = "guest_user";
+        let userName = "Guest User";
+        let tg = null;
 
-    const adBtn = document.getElementById('ad-btn');
-    const statusContainer = document.getElementById('status-container');
-    const timerText = document.getElementById('timer-text');
-    const successMsg = document.getElementById('success-msg');
-    const userPoints = document.getElementById('user-points');
-    const adsWatched = document.getElementById('ads-watched');
-
-    // অ্যাড ক্লিক করলে চালু হবে
-    function openAdAndStartTimer() {
-      // ১. অ্যাড লিংক অন্য ট্যাবে ওপেন করা
-      window.open('https://your-ad-link.com', '_blank');
-
-      // ২. টাইমার সেটআপ
-      timeLeft = 30;
-      adBtn.disabled = true;
-      successMsg.style.display = 'none';
-      statusContainer.style.display = 'block';
-      timerText.innerText = `অপেক্ষা করুন: ${timeLeft} সেকেন্ড`;
-
-      startTimer();
-    }
-
-    // টাইমার চালু করার ফাংশন
-    function startTimer() {
-      if (isTimerRunning) return;
-      
-      isTimerRunning = true;
-      countdownTimer = setInterval(() => {
-        if (timeLeft > 0) {
-          timeLeft--;
-          timerText.innerText = `অপেক্ষা করুন: ${timeLeft} সেকেন্ড`;
-        } else {
-          // টাইমার শেষ হলে পয়েন্ট দেওয়া হবে
-          clearInterval(countdownTimer);
-          isTimerRunning = false;
-          rewardUser();
+        try {
+            if (window.Telegram && window.Telegram.WebApp) {
+                tg = window.Telegram.WebApp;
+                tg.ready();
+                tg.expand();
+                if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                    userId = tg.initDataUnsafe.user.id ? tg.initDataUnsafe.user.id.toString() : "guest_user";
+                    userName = tg.initDataUnsafe.user.first_name || "User";
+                }
+            }
+        } catch (e) {
+            console.log("Telegram SDK Error", e);
         }
-      }, 1000);
-    }
 
-    // টাইমার পজ করার ফাংশন
-    function pauseTimer() {
-      clearInterval(countdownTimer);
-      isTimerRunning = false;
-    }
+        // Firebase Connection
+        const firebaseConfig = {
+            databaseURL: "https://telegram-earn-app-bf23c-default-rtdb.firebaseio.com"
+        };
+        
+        let db = null;
+        let userRef = null;
 
-    // পেজ ভিজিবিলিটি ট্র্যাকিং (ইউজার অ্যাপ থেকে বের হলে থামবে)
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        // ইউজার অ্যাপ মিনিমাইজ করলে বা অন্য লিংকে গেলে টাইমার থেমে যাবে
-        if (isTimerRunning) {
-          pauseTimer();
-          timerText.innerText = `পজ হয়ে আছে (${timeLeft} সেকেন্ড বাকি) - অ্যাপে ফিরে আসুন`;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+            userRef = db.ref('users/' + userId);
+        } catch (e) {
+            console.log("Firebase Init Error", e);
         }
-      } else {
-        // ইউজার অ্যাপে ফিরে এলে আবার সময় চালু হবে
-        if (!isTimerRunning && timeLeft > 0 && adBtn.disabled) {
-          timerText.innerText = `অপেক্ষা করুন: ${timeLeft} সেকেন্ড`;
-          startTimer();
+
+        const today = new Date().toISOString().slice(0, 10);
+        let currentBalance = 0;
+        let todayCount = 0;
+        let isWatchingAd = false;
+        let timerInterval = null;
+        let timeLeft = 30; // Global variable to manage pause/resume
+        let currentVideoNo = 0;
+
+        // Firebase Data Sync
+        if (userRef) {
+            userRef.on('value', (snapshot) => {
+                const data = snapshot.val() || { balance: 0, lastDate: today, todayCount: 0, name: userName };
+                
+                todayCount = data.todayCount || 0;
+                if (data.lastDate !== today) {
+                    todayCount = 0;
+                    userRef.update({ lastDate: today, todayCount: 0, name: userName });
+                } else {
+                    userRef.update({ name: userName });
+                }
+
+                currentBalance = data.balance || 0;
+                document.getElementById('balance').innerText = currentBalance;
+                document.getElementById('watchedCount').innerText = todayCount;
+
+                if (todayCount >= 100) {
+                    document.getElementById('adBtn').disabled = true;
+                    document.getElementById('status').innerText = "আজকের ভিডিও সীমা (১০০টি) শেষ! আগামীকাল আবার চেষ্টা করুন।";
+                    document.getElementById('status').style.color = "#ff5252";
+                }
+            });
+
+            // Load Withdrawal History
+            db.ref('withdrawals').orderByChild('userId').equalTo(userId).on('value', (snapshot) => {
+                const historyList = document.getElementById('historyList');
+                historyList.innerHTML = '';
+
+                if (snapshot.exists()) {
+                    snapshot.forEach((childSnapshot) => {
+                        const item = childSnapshot.val();
+                        const statusClass = item.status === 'successful' ? 'status-successful' : 'status-processing';
+                        const statusText = item.status === 'successful' ? 'Successful' : 'Processing';
+
+                        const div = document.createElement('div');
+                        div.className = 'history-item';
+                        div.innerHTML = `
+                            <div>
+                                <b>${item.amount}</b> (${item.method})<br>
+                                <span style="font-size:11px; color:#aaa;">${item.timestamp}</span>
+                            </div>
+                            <div class="${statusClass}">${statusText}</div>
+                        `;
+                        historyList.appendChild(div);
+                    });
+                } else {
+                    historyList.innerHTML = '<p class="info-text">কোনো উইথড্র হিস্টোরি নেই</p>';
+                }
+            });
         }
-      }
-    });
 
-    // রিওয়ার্ড যোগ করা
-    function rewardUser() {
-      points += 10;
-      watchedCount += 1;
+        // Watch Ad Trigger Function
+        function watchAd() {
+            if (todayCount >= 100) {
+                alert("আজকের ভিডিও সীমা শেষ!");
+                return;
+            }
 
-      userPoints.innerText = points;
-      adsWatched.innerText = watchedCount;
+            currentVideoNo = todayCount + 1;
 
-      statusContainer.style.display = 'none';
-      successMsg.style.display = 'block';
-      adBtn.disabled = false;
-    }
-  </script>
+            // Open Monetag Ad Direct Link
+            try {
+                if (tg && tg.openLink) {
+                    tg.openLink(MONETAG_DIRECT_LINK);
+                } else {
+                    window.open(MONETAG_DIRECT_LINK, '_blank');
+                }
+            } catch (e) {
+                window.open(MONETAG_DIRECT_LINK, '_blank');
+            }
 
+            timeLeft = 30; // Reset time to 30 seconds
+            startTimerProcess();
+        }
+
+        function startTimerProcess() {
+            const statusElem = document.getElementById('status');
+            const timerBox = document.getElementById('timerBox');
+            const countdownElem = document.getElementById('countdown');
+            const adBtn = document.getElementById('adBtn');
+
+            isWatchingAd = true;
+            adBtn.disabled = true;
+            timerBox.style.display = "block";
+            statusElem.innerText = `${currentVideoNo} নম্বর ভিডিও প্রসেস হচ্ছে, অনুগ্রহ করে ${timeLeft} সেকেন্ড অপেক্ষা করুন...`;
+            statusElem.style.color = "#ffeb3b";
+
+            countdownElem.innerText = timeLeft;
+
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                countdownElem.innerText = timeLeft;
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    timerBox.style.display = "none";
+                    isWatchingAd = false;
+                    adBtn.disabled = false;
+                    addRewardPoints();
+                }
+            }, 1000);
+        }
+
+        function pauseTimerProcess() {
+            clearInterval(timerInterval);
+            const statusElem = document.getElementById('status');
+            if (isWatchingAd) {
+                statusElem.innerText = `পজ হয়ে আছে (${timeLeft} সেকেন্ড বাকি) - অনুগ্রহ করে অ্যাপে ফিরে আসুন।`;
+                statusElem.style.color = "#ff9800";
+            }
+        }
+
+        // Page Visibility Listener (পজ এবং রিজিউম লজিক)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                if (isWatchingAd) {
+                    pauseTimerProcess();
+                }
+            } else {
+                if (isWatchingAd && timeLeft > 0) {
+                    startTimerProcess();
+                }
+            }
+        });
+
+        // Add Points After 30 Seconds
+        function addRewardPoints() {
+            const statusElem = document.getElementById('status');
+            if (!userRef) return;
+
+            userRef.once('value').then((snapshot) => {
+                const data = snapshot.val() || { balance: 0, todayCount: 0 };
+                const newBalance = (data.balance || 0) + 10;
+                const newCount = (data.todayCount || 0) + 1;
+
+                userRef.update({
+                    balance: newBalance,
+                    todayCount: newCount,
+                    lastDate: today,
+                    name: userName
+                });
+
+                statusElem.innerText = "অভিনন্দন! ১০ পয়েন্ট সফলভাবে যোগ করা হয়েছে।";
+                statusElem.style.color = "#00e676";
+            });
+        }
+
+        // Request Withdraw
+        function requestWithdraw() {
+            const method = document.getElementById('paymentMethod').value;
+            const account = document.getElementById('accountNumber').value.trim();
+            const points = parseInt(document.getElementById('withdrawPoints').value);
+            const wStatus = document.getElementById('withdrawStatus');
+
+            if (!account) {
+                wStatus.innerText = "দয়া করে সঠিক নম্বর বা UPI ID লিখুন।";
+                wStatus.style.color = "#ff5252";
+                return;
+            }
+
+            if (isNaN(points) || points < 1000) {
+                wStatus.innerText = "সর্বনিম্ন ১০০০ পয়েন্ট উইথড্র করতে হবে।";
+                wStatus.style.color = "#ff5252";
+                return;
+            }
+
+            if (points > currentBalance) {
+                wStatus.innerText = "আপনার কাছে পর্যাপ্ত পয়েন্ট নেই!";
+                wStatus.style.color = "#ff5252";
+                return;
+            }
+
+            wStatus.innerText = "প্রসেসিং হচ্ছে...";
+            wStatus.style.color = "#ffeb3b";
+
+            const newBalance = currentBalance - points;
+            const currency = method.includes('INR') ? 'INR (₹)' : 'BDT (৳)';
+            const calculatedAmount = (points / 100).toFixed(2);
+
+            if (userRef && db) {
+                userRef.update({ balance: newBalance }).then(() => {
+                    const withdrawRef = db.ref('withdrawals').push();
+                    withdrawRef.set({
+                        userId: userId,
+                        userName: userName,
+                        method: method,
+                        account: account,
+                        points: points,
+                        amount: calculatedAmount + ' ' + currency,
+                        status: 'processing',
+                        timestamp: new Date().toLocaleDateString()
+                    }).then(() => {
+                        wStatus.innerText = "উইথড্র রিকোয়েস্ট জমা হয়েছে!";
+                        wStatus.style.color = "#00e676";
+                        document.getElementById('accountNumber').value = '';
+                        document.getElementById('withdrawPoints').value = '';
+                    });
+                }).catch((err) => {
+                    wStatus.innerText = "সমস্যা হয়েছে, পরে আবার চেষ্টা করুন।";
+                    wStatus.style.color = "#ff5252";
+                });
+            }
+        }
+    </script>
 </body>
 </html>
